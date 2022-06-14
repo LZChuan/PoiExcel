@@ -1,10 +1,6 @@
 package com.chuan;
 
-import org.apache.poi.xssf.usermodel.XSSFRow;
-import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.apache.poi.xssf.usermodel.XSSFWorkbookFactory;
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -17,6 +13,7 @@ public class Main {
     public static <PortableConnectionImpl> void main(String[] args) throws IOException {
         System.out.println("Hello world!");
         String jsonStr = JsonParseUtil.readJsonData("excel_sample.json");
+//        String jsonStr = JsonParseUtil.readJsonData("Excel_full.json");
         XSSFWorkbook excel_out = ExcelExport.exportLuckySheetByPOI(jsonStr);
 //        System.out.println(jsonStr);
 
@@ -35,8 +32,6 @@ public class Main {
         os.flush();
         os.close();
     }
-
-
 
 
 }

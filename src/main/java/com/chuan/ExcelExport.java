@@ -2,6 +2,7 @@ package com.chuan;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import jdk.nashorn.internal.runtime.regexp.joni.exception.ValueException;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.*;
@@ -13,9 +14,13 @@ import java.util.*;
 public class ExcelExport {
   //设置字体大小和颜色
   private static final Map<Integer, String> FontMap = new HashMap<>();
+  //设置边框样式map
+  private static final Map<Integer, BorderStyle> BordMap = new HashMap<>();
+  //设置默认颜色库
+  private static final DefaultIndexedColorMap DEFAULT_INDEXED_COLOR_MAP = new DefaultIndexedColorMap();
 
   static {
-    FontMap.put(-1, "Arial");
+    FontMap.put(-1, "Calibri");
     FontMap.put(0, "Times New Roman");
     FontMap.put(1, "Arial");
     FontMap.put(2, "Tahoma");
@@ -29,8 +34,21 @@ public class ExcelExport {
     FontMap.put(10, "华文新魏");
     FontMap.put(11, "华文行楷");
     FontMap.put(12, "华文隶书");
-  }
 
+    BordMap.put(1, BorderStyle.THIN);
+    BordMap.put(2, BorderStyle.HAIR);
+    BordMap.put(3, BorderStyle.DOTTED);
+    BordMap.put(4, BorderStyle.DASHED);
+    BordMap.put(5, BorderStyle.DASH_DOT);
+    BordMap.put(6, BorderStyle.DASH_DOT_DOT);
+    BordMap.put(7, BorderStyle.DOUBLE);
+    BordMap.put(8, BorderStyle.MEDIUM);
+    BordMap.put(9, BorderStyle.MEDIUM_DASHED);
+    BordMap.put(10, BorderStyle.MEDIUM_DASH_DOT);
+    BordMap.put(11, BorderStyle.MEDIUM_DASH_DOT_DOT);
+    BordMap.put(12, BorderStyle.SLANTED_DASH_DOT);
+    BordMap.put(13, BorderStyle.THICK);
+  }
 
   //基于模板导出
   public static void exportLuckySheetXlsx(String title, String newFileDir, String newFileName, String excelData) {
@@ -181,7 +199,6 @@ public class ExcelExport {
 
   }
 
-
   /***
    * 导出excel通过POI实现
    * @param excelData 前端数据表格的json
@@ -212,6 +229,14 @@ public class ExcelExport {
       JSONArray chart = jsonObject.getJSONArray("chart");
       // 表的整体配置
       JSONObject config = jsonObject.getJSONObject("config");
+
+      boolean isPivotTable = jsonObject.getBoolean("isPivotTable") != null && jsonObject.getBoolean("isPivotTable");
+      if(isPivotTable){   // TODO 透视表暂时不支持
+        continue;
+      }
+
+      // TODO 图表 char暂时未支持；
+
 
       //单元格的样式
       XSSFCellStyle cellStyle = excel.createCellStyle();
@@ -253,26 +278,27 @@ public class ExcelExport {
     //行
     XSSFRow row = null;
     for (int i = 0; i < data.size(); i++) {
+      // 创建行并设置行高
       row = sheet.createRow(i);
-      //设置行高,默认为20
-      if (rowlen.size() > 0) {
-        row.setHeightInPoints(rowlen.getInteger(String.valueOf(i)) != null ? rowlen.getInteger(String.valueOf(i)) : 20);
+      if (rowlen != null) {        //设置行高,默认为20
+        row.setHeightInPoints(rowlen.getInteger(String.valueOf(i)) == null ? 20 : rowlen.getInteger(String.valueOf(i)));
+      } else {
+        row.setHeightInPoints(20f);
       }
-
       //创建列
       for (int j = 0; j < data.getJSONArray(i).size(); j++) {
+        /*********/
         // 设置列宽，无默认值  TODO 能否在外层设置？
         if (columnlen != null && columnlen.getInteger(String.valueOf(j)) != null) {
           sheet.setColumnWidth(j, columnlen.getInteger(j + "") * 42);//列宽px值
         }
         //这里可以设置celltype，在构造方法里
-
+        /********/
         // 创建单元格
         row.createCell(j);
       }
     }
-
-    //设置值单元格值
+    //设置所有单元格值
     setCellValue(cellData, borderInfo, sheet, excel);
   }
 
@@ -284,83 +310,136 @@ public class ExcelExport {
     // 设置所有单元格信息
     for (int index = 0; index < cellData.size(); index++) {
 
-      XSSFCellStyle style = excel.createCellStyle();//样式
+      XSSFCellStyle style = excel.createCellStyle();   // TODO 反复创建，拖慢速度，需要优化
       XSSFFont font = excel.createFont();//字体样式
       //数字格式
       XSSFDataFormat dataFormat = excel.createDataFormat();
 
-      JSONObject object = cellData.getJSONObject(index);
+      XSSFCell cell = null;
 
-      //单元格类型
-      if (object.getJSONObject("v").containsKey("ct")) {
-        // Type类型
-        cellType = object.getJSONObject("v").getJSONObject("ct").getString("t");
-        // Format格式的定义串
-        cellFormat = object.getJSONObject("v").getJSONObject("ct").getString("fa");
+      JSONObject cellObject = cellData.getJSONObject(index);
+
+
+      JSONObject cellObject_v = null;
+      try{
+
+        cellObject_v = cellObject.getJSONObject("v");
+      } catch (Exception e){
+        e.printStackTrace();
       }
 
-      String str_ = object.get("r") + "_" + object.get("c") + "=" + ((JSONObject) object.get("v")).get("v") + "\n";
-      JSONObject jsonObjectValue = ((JSONObject) object.get("v"));
 
-      String value = "";
-      if (jsonObjectValue != null && jsonObjectValue.get("v") != null) {
-        value = jsonObjectValue.getString("v");
-      }
+      if (sheet.getRow((int) cellObject.get("r")) != null && sheet.getRow((int) cellObject.get("r")).getCell((int) cellObject.get("c")) != null) {
 
-      if (sheet.getRow((int) object.get("r")) != null && sheet.getRow((int) object.get("r")).getCell((int) object.get("c")) != null) {
-        XSSFCell cell = sheet.getRow((int) object.get("r")).getCell((int) object.get("c"));
+        cell = sheet.getRow((int) cellObject.get("r")).getCell((int) cellObject.get("c"));
 
-        if (jsonObjectValue != null && jsonObjectValue.get("f") != null) {//如果有公式，设置公式
-          value = jsonObjectValue.getString("f");
-          cell.setCellFormula(value.substring(1, value.length()));//不需要=符号
-        }
-
-        if (cellFormat != null || !cellFormat.equals("")) {
-          style.setDataFormat(dataFormat.getFormat(cellFormat));
-        }
-
-        //合并单元格与填充单元格颜色
-        setMergeAndColorByObject(jsonObjectValue, sheet, style);
-        JSONObject mergeObject = (JSONObject) jsonObjectValue.get("mc");
-        if (mergeObject != null) {
-          int r = (int) (mergeObject.get("r"));
-          int c = (int) (mergeObject.get("c"));
-          if ((mergeObject.get("rs") != null && (mergeObject.get("cs") != null))) {
-            int rs = (int) (mergeObject.get("rs"));
-            int cs = (int) (mergeObject.get("cs"));
-            CellRangeAddress region = new CellRangeAddress(r, r + rs - 1, (short) (c), (short) (c + cs - 1));
-            sheet.addMergedRegion(region);
+        //单元格内容 类型
+        if (cellObject_v.containsKey("ct")) {
+          // Type类型
+          cellType = cellObject_v.getJSONObject("ct").getString("t");
+          // Format格式的定义串
+          cellFormat = cellObject_v.getJSONObject("ct").getString("fa");
+          if (cellFormat != null && !Objects.equals(cellFormat, "")) {  // TODO 需要验证条件
+            style.setDataFormat(dataFormat.getFormat(cellFormat));
           }
         }
 
-        if (jsonObjectValue.getString("bg") != null) {
-          int bg = Integer.parseInt(jsonObjectValue.getString("bg").replace("#", ""), 16);
-          style.setFillPattern(FillPatternType.SOLID_FOREGROUND);    //设置填充方案
-          style.setFillForegroundColor(new XSSFColor((IndexedColorMap) new Color(bg)));  //设置填充颜色
+        // 获取单元格 内容  TODO 需要完善 公式、value值、m值的取舍；
+        String value = "";
+        if (cellObject_v.get("v") != null) {
+          value = cellObject_v.getString("v");
         }
-
+        //如果有公式，设置公式
+        if (cellObject_v.get("f") != null) {
+          // TODO 有很多公式无法支持，使用try进行设置
+          String value_t = value;
+          try {
+            value = cellObject_v.getString("f");
+            cell.setCellFormula(value.substring(1));//不需要=符号  TODO 公式 需要验证
+          } catch (Exception e) {
+            e.printStackTrace();
+            value = value_t;
+          }
+        }
+        // 根据单元格 类型 修改单元格内容的值  TODO 需要完善，识别 各种类型；
         if (!value.equals("")) {
-          style.setDataFormat(dataFormat.getFormat(cellFormat));
-          if (cellType == "n") {
-            cell.setCellValue(Double.parseDouble(value));
-          } else {
-            cell.setCellValue(value);
-          }
+          switch (cellType) {
+            case "s": // 纯文本
+            case "g": // 默认格式
+              cell.setCellValue(value);
+              break;
 
-          //          //处理单元格格式，主要处理数字，double类型和百分比,如果是数字
-          //          if(NUMBER_PATTERN.matcher(value).matches()){ //如果是数字
-          ////          if(true){ //如果是数字
-          //            style.setDataFormat(dataFormat.getFormat(cellFormat));
-          //            cell.setCellValue(Double.parseDouble(value));
-          //          }else{   //其他格式
-          //            style.setDataFormat(dataFormat.getFormat(cellFormat));
-          //            cell.setCellValue(value);
-          //          }
+            case "d": // 时间
+              try {
+                cell.setCellValue(Double.parseDouble(value));
+              } catch (Exception e) {
+                e.printStackTrace();
+              }
+              break;
+
+            case "n": // 数字 货币， TODO 遇到计算公式怎么处理？
+              try {
+                cell.setCellValue(Double.parseDouble(value));
+              } catch (Exception e) {
+                e.printStackTrace();
+                // 会出现 公式的情况
+                cell.setCellValue(value);
+              }
+              break;
+          }
         }
 
+        // 分割单元格 TODO 暂缺
+
+
+        //合并单元格
+        if (cellObject_v.containsKey("mc")) {
+          JSONObject mergeObject = (JSONObject) cellObject_v.get("mc");
+          if (mergeObject != null) {
+            int r = mergeObject.getInteger("r");
+            int c = mergeObject.getInteger("c");
+            if (mergeObject.get("rs") != null && (mergeObject.get("cs") != null)) {
+              int rs = mergeObject.getInteger("rs");
+              int cs = mergeObject.getInteger("cs");
+              CellRangeAddress region = new CellRangeAddress(r, r + rs - 1, (short) (c), (short) (c + cs - 1));
+              sheet.addMergedRegion(region);
+            }
+          }
+        }
+
+        // 单元格背景颜色
+        if (cellObject_v.getString("bg") != null) {
+          style.setFillPattern(FillPatternType.SOLID_FOREGROUND);    //设置填充方案
+          style.setFillForegroundColor(new XSSFColor(setColor(cellObject_v.getString("bg")),
+              new DefaultIndexedColorMap()));
+        }
+
+        //设置合并单元格的样式有问题
+        int ff = cellObject_v.getInteger("ff") == null ? -1 : cellObject_v.getInteger("ff");//0 Times New Roman、 1 Arial、2 Tahoma 、3 Verdana、4 微软雅黑、5 宋体（Song）、6 黑体（ST Heiti）、7 楷体（ST Kaiti）、 8 仿宋（ST FangSong）、9 新宋体（ST Song）、10 华文新魏、11 华文行楷、12 华文隶书
+        int fs = cellObject_v.getInteger("fs") == null ? 14 : cellObject_v.getInteger("fs");//字体大小
+        int bl = cellObject_v.getInteger("bl") == null ? 0 : cellObject_v.getInteger("bl");//粗体	0 常规 、 1加粗
+        int it = cellObject_v.getInteger("it") == null ? 0 : cellObject_v.getInteger("it");//斜体	0 常规 、 1 斜体
+        String fc = cellObject_v.getString("fc") == null ? "" : cellObject_v.getString("fc");//字体颜色
+        int vt = cellObject_v.getInteger("vt") == null ? 1 : cellObject_v.getInteger("vt");//垂直对齐	 0 中间、1 上、2下
+        int ht = cellObject_v.getInteger("ht") == null ? 1 : cellObject_v.getInteger("ht");//0 居中、1 左、2右
+
+        //************************* 字体设置 ************************
+        // 设置字体是否加粗
+        font.setBold(bl == 1);//粗体显示
+        // 设置字体斜体
+        font.setItalic(it == 1);//斜体
+        // 设置字体样式，默认为Calibri
+        font.setFontName(FontMap.get(ff));//字体名字
+        // 设置字体大小
+        font.setFontHeightInPoints((short) fs);//字体大小
+        // 字体颜色
+        if (fc.length() > 0) {
+          font.setColor(new XSSFColor(setColor(fc), new DefaultIndexedColorMap()));
+        }
+        style.setFont(font);
+
+        //*********************** 设置对齐方式 **********************
         //设置垂直水平对齐方式
-        int vt = jsonObjectValue.getInteger("vt") == null ? 1 : jsonObjectValue.getInteger("vt");//垂直对齐	 0 中间、1 上、2下
-        int ht = jsonObjectValue.getInteger("ht") == null ? 1 : jsonObjectValue.getInteger("ht");//0 居中、1 左、2右
         switch (vt) {
           case 0:
             style.setVerticalAlignment(VerticalAlignment.CENTER);
@@ -384,31 +463,13 @@ public class ExcelExport {
             break;
         }
 
-        //设置合并单元格的样式有问题
-        String ff = jsonObjectValue.getString("ff");//0 Times New Roman、 1 Arial、2 Tahoma 、3 Verdana、4 微软雅黑、5 宋体（Song）、6 黑体（ST Heiti）、7 楷体（ST Kaiti）、 8 仿宋（ST FangSong）、9 新宋体（ST Song）、10 华文新魏、11 华文行楷、12 华文隶书
-        int fs = jsonObjectValue.getInteger("fs") == null ? 14 : jsonObjectValue.getInteger("fs");//字体大小
-        int bl = jsonObjectValue.getInteger("bl") == null ? 0 : jsonObjectValue.getInteger("bl");//粗体	0 常规 、 1加粗
-        int it = jsonObjectValue.getInteger("it") == null ? 0 : jsonObjectValue.getInteger("it");//斜体	0 常规 、 1 斜体
-        String fc = jsonObjectValue.getString("fc") == null ? "" : jsonObjectValue.getString("fc");//字体颜色
-        font.setFontName(FontMap.get(ff));//字体名字
-        // rgb颜色转换
-        String[] rgb_str = fc.replace("rgb(", "").replace(")", "").replace(" ", "").split(",");
-        if (fc.length() > 0) {
-          font.setColor(new XSSFColor(
-              new Color(Integer.parseInt(rgb_str[0]), Integer.parseInt(rgb_str[1]), Integer.parseInt(rgb_str[2])),
-              new DefaultIndexedColorMap()));
-        }
-        font.setFontName(ff);//字体名字
-        font.setFontHeightInPoints((short) fs);//字体大小
-        if (bl == 1) {
-          font.setBold(true);//粗体显示
-        }
-        font.setItalic(it == 1 ? true : false);//斜体
-        style.setFont(font);
-        style.setWrapText(true);//设置自动换行
+        //设置自动换行
+        style.setWrapText(true);
+        // 将样式配置到单元格
         cell.setCellStyle(style);
 
       } else {
+        String str_ = cellObject.get("r") + "_" + cellObject.get("c") + "=" + ((JSONObject) cellObject.get("v")).get("v") + "\n";
         System.out.println("错误的=" + index + ">>>" + str_);
       }
     }
@@ -418,28 +479,14 @@ public class ExcelExport {
 
   //设置边框
   private static void setBorder(JSONArray borderInfoObjectList, XSSFWorkbook workbook, XSSFSheet sheet) {
-    //设置边框样式map
-    Map<Integer, BorderStyle> bordMap = new HashMap<>();
-    bordMap.put(1, BorderStyle.THIN);
-    bordMap.put(2, BorderStyle.HAIR);
-    bordMap.put(3, BorderStyle.DOTTED);
-    bordMap.put(4, BorderStyle.DASHED);
-    bordMap.put(5, BorderStyle.DASH_DOT);
-    bordMap.put(6, BorderStyle.DASH_DOT_DOT);
-    bordMap.put(7, BorderStyle.DOUBLE);
-    bordMap.put(8, BorderStyle.MEDIUM);
-    bordMap.put(9, BorderStyle.MEDIUM_DASHED);
-    bordMap.put(10, BorderStyle.MEDIUM_DASH_DOT);
-    bordMap.put(11, BorderStyle.MEDIUM_DASH_DOT_DOT);
-    bordMap.put(12, BorderStyle.SLANTED_DASH_DOT);
-    bordMap.put(13, BorderStyle.THICK);
 
     //一定要通过 cell.getCellStyle()  不然的话之前设置的样式会丢失
     //设置边框
     if (null != borderInfoObjectList) {
       for (int i = 0; i < borderInfoObjectList.size(); i++) {
         JSONObject borderInfoObject = (JSONObject) borderInfoObjectList.get(i);
-        if (borderInfoObject.get("rangeType").equals("cell")) {//单个单元格
+        //单个单元格
+        if (borderInfoObject.get("rangeType").equals("cell")) {
           JSONObject borderValueObject = borderInfoObject.getJSONObject("value");
 
           JSONObject l = borderValueObject.getJSONObject("l");
@@ -454,48 +501,52 @@ public class ExcelExport {
           XSSFCell cell = sheet.getRow(row).getCell(col);
 
 
-          if (l != null) {
-            cell.getCellStyle().setBorderLeft(bordMap.get((int) l.get("style"))); //左边框
-            int bg = Integer.parseInt(l.getString("color").replace("#", ""), 16);
-            cell.getCellStyle().setLeftBorderColor(new XSSFColor(new Color(bg)));//左边框颜色
+          if (l != null) {  //左边框
+            cell.getCellStyle().setBorderLeft(BordMap.get(l.getInteger("style"))); // 样式
+            cell.getCellStyle().setLeftBorderColor(new XSSFColor(setColor(l.getString("color")),
+                new DefaultIndexedColorMap()));  //颜色
           }
-          if (r != null) {
-            cell.getCellStyle().setBorderRight(bordMap.get((int) r.get("style"))); //右边框
-            int bg = Integer.parseInt(r.getString("color").replace("#", ""), 16);
-            cell.getCellStyle().setRightBorderColor(new XSSFColor(new Color(bg)));//右边框颜色
+          if (r != null) {  //右边框
+            cell.getCellStyle().setBorderRight(BordMap.get(r.getInteger("style"))); // 样式
+            cell.getCellStyle().setRightBorderColor(new XSSFColor(setColor(r.getString("color")),
+                new DefaultIndexedColorMap()));  //颜色
           }
-          if (t != null) {
-            cell.getCellStyle().setBorderTop(bordMap.get((int) t.get("style"))); //顶部边框
-            int bg = Integer.parseInt(t.getString("color").replace("#", ""), 16);
-            cell.getCellStyle().setTopBorderColor(new XSSFColor(new Color(bg)));//顶部边框颜色
+          if (t != null) {  //顶部边框
+            cell.getCellStyle().setBorderTop(BordMap.get(t.getInteger("style"))); // 样式
+            cell.getCellStyle().setTopBorderColor(new XSSFColor(setColor(t.getString("color")),
+                new DefaultIndexedColorMap()));  //颜色
           }
-          if (b != null) {
-            cell.getCellStyle().setBorderBottom(bordMap.get((int) b.get("style"))); //底部边框
-            int bg = Integer.parseInt(b.getString("color").replace("#", ""), 16);
-            cell.getCellStyle().setBottomBorderColor(new XSSFColor(new Color(bg)));//底部边框颜色
+          if (b != null) {  //底部边框
+            cell.getCellStyle().setBorderBottom(BordMap.get(b.getInteger("style"))); // 样式
+            cell.getCellStyle().setBottomBorderColor(new XSSFColor(setColor(b.getString("color")),
+                new DefaultIndexedColorMap()));  //颜色
           }
         } else if (borderInfoObject.get("rangeType").equals("range")) {//选区
-          int bg_ = Integer.parseInt(borderInfoObject.getString("color").replace("#", ""), 16);
+          String bg_ = borderInfoObject.getString("color");
           int style_ = borderInfoObject.getInteger("style");
 
-          JSONObject rangObject = (JSONObject) ((JSONArray) (borderInfoObject.get("range"))).get(0);
+          String borderType = borderInfoObject.getString("borderType");  // TODO 边框类型没有设置，需要完善
 
+          JSONObject rangObject = (JSONObject) ((JSONArray) (borderInfoObject.get("range"))).get(0);
           JSONArray rowList = rangObject.getJSONArray("row");
           JSONArray columnList = rangObject.getJSONArray("column");
-
 
           for (int row_ = rowList.getInteger(0); row_ < rowList.getInteger(rowList.size() - 1) + 1; row_++) {
             for (int col_ = columnList.getInteger(0); col_ < columnList.getInteger(columnList.size() - 1) + 1; col_++) {
               XSSFCell cell = sheet.getRow(row_).getCell(col_);
 
-              cell.getCellStyle().setBorderLeft(bordMap.get(style_)); //左边框
-              cell.getCellStyle().setLeftBorderColor(new XSSFColor(new Color(bg_)));//左边框颜色
-              cell.getCellStyle().setBorderRight(bordMap.get(style_)); //右边框
-              cell.getCellStyle().setRightBorderColor(new XSSFColor(new Color(bg_)));//右边框颜色
-              cell.getCellStyle().setBorderTop(bordMap.get(style_)); //顶部边框
-              cell.getCellStyle().setTopBorderColor(new XSSFColor(new Color(bg_)));//顶部边框颜色
-              cell.getCellStyle().setBorderBottom(bordMap.get(style_)); //底部边框
-              cell.getCellStyle().setBottomBorderColor(new XSSFColor(new Color(bg_)));//底部边框颜色 }
+              XSSFColor color_tmp = new XSSFColor(setColor(bg_), DEFAULT_INDEXED_COLOR_MAP);
+              BorderStyle style_tmp = BordMap.get(style_);
+
+              cell.getCellStyle().setBorderLeft(style_tmp); //左边框
+              cell.getCellStyle().setBorderRight(style_tmp); //右边框
+              cell.getCellStyle().setBorderTop(style_tmp); //顶部边框
+              cell.getCellStyle().setBorderBottom(style_tmp); //底部边框
+
+              cell.getCellStyle().setLeftBorderColor(color_tmp);//左边框颜色
+              cell.getCellStyle().setRightBorderColor(color_tmp);//右边框颜色
+              cell.getCellStyle().setTopBorderColor(color_tmp);//顶部边框颜色
+              cell.getCellStyle().setBottomBorderColor(color_tmp);//底部边框颜色
             }
           }
         }
@@ -526,4 +577,31 @@ public class ExcelExport {
   }
 
 
+  // 颜色转换
+  private static Color setColor(String color) {
+    if (color.startsWith("#")) {
+      int hexColor = Integer.parseInt(color.replace("#", ""), 16);
+      return new Color(hexColor);
+    } else if (color.startsWith("rgb")) {
+      // rgb颜色转换
+      String[] rgb_str = color.replace("rgb(", "").replace(")", "").replace(" ", "").split(",");
+      return new Color(Integer.parseInt(rgb_str[0]), Integer.parseInt(rgb_str[1]), Integer.parseInt(rgb_str[2]));
+    } else {
+      throw new ValueException("{}--this color format is not supported now", color);
+    }
+  }
+
 }
+
+// TODO：
+//  1、char;
+//  2、单元格注释；
+//  3、单元格复选框
+//  4、透视表；
+//  5、公式；
+//  6、表的冻结；
+//  7、表的筛选；
+//  8、删除线；
+//  9、边框设置；
+//  10、字体旋转倾斜
+//  11、
