@@ -263,19 +263,15 @@ public class DrawSheetCharts {
     XDDFChartData draw_data = chart.createData(ChartTypes.PIE, null, null);
     //设置为可变颜色
     draw_data.setVaryColors(true);
-    draw_data.addSeries(xAxisValue, values);
 
-//    if (chartDefaultOption.getJSONArray("series") != null) {
-//      JSONArray seriesData = chartDefaultOption.getJSONArray("seriesData");
-//      JSONObject seriesInfo = chartDefaultOption.getJSONObject("series");
-//
-//      for (int series_idx = 0; series_idx < seriesData.size(); series_idx++) {
-//        XDDFNumericalDataSource<Double> series_plot_data = XDDFDataSourcesFactory.fromArray(
-//            Utils.JsonArray2ArrayDouble(seriesData.getJSONArray(series_idx)));
-//        draw_data.addSeries(xAxisValue, series_plot_data);
-////        XDDFPieChartData.Series series_plot = (XDDFPieChartData.Series) draw_data.addSeries(xAxisValue, series_plot_data);
-//      }
-//    }
+    if (chartDefaultOption.getJSONArray("series") != null) {
+      JSONArray seriesData = chartDefaultOption.getJSONArray("seriesData");
+      for (int series_idx = 0; series_idx < seriesData.size(); series_idx++) {
+        XDDFNumericalDataSource<Double> series_plot_data = XDDFDataSourcesFactory.fromArray(
+            Utils.JsonArray2ArrayDouble(seriesData.getJSONArray(series_idx)));
+        draw_data.addSeries(xAxisValue, series_plot_data);
+      }
+    }
 
 
     chart.plot(draw_data);
