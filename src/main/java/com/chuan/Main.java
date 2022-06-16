@@ -12,10 +12,11 @@ import java.time.format.DateTimeFormatter;
 public class Main {
     public static <PortableConnectionImpl> void main(String[] args) throws IOException {
         System.out.println("Hello world!");
-        String jsonStr = JsonParseUtil.readJsonData("excel_sample.json");
+        String jsonStr = JsonParseUtil.readJsonData("excel_sample_pie.json");
+//        String jsonStr = JsonParseUtil.readJsonData("excel_sample_line.json");
+//        String jsonStr = JsonParseUtil.readJsonData("excel_sample.json");
 //        String jsonStr = JsonParseUtil.readJsonData("Excel_full.json");
         XSSFWorkbook excel_out = ExcelExport.exportLuckySheetByPOI(jsonStr);
-//        System.out.println(jsonStr);
 
         String date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
         String fileName="excel_out_"+date+".xlsx";

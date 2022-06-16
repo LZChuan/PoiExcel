@@ -5,7 +5,9 @@ import com.alibaba.fastjson.JSONObject;
 import jdk.nashorn.internal.runtime.regexp.joni.exception.ValueException;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.xddf.usermodel.chart.*;
 import org.apache.poi.xssf.usermodel.*;
+import com.chuan.chartsUtils.*;
 
 import java.awt.Color;
 import java.io.*;
@@ -226,24 +228,163 @@ public class ExcelExport {
       //更新和存储使用的单元格数据
       JSONArray data = jsonObject.getJSONArray("data");
       // 图表数据
-      JSONArray chart = jsonObject.getJSONArray("chart");
+      JSONArray chartData = jsonObject.getJSONArray("chart");
       // 表的整体配置
       JSONObject config = jsonObject.getJSONObject("config");
 
       boolean isPivotTable = jsonObject.getBoolean("isPivotTable") != null && jsonObject.getBoolean("isPivotTable");
-      if(isPivotTable){   // TODO 透视表暂时不支持
+      if (isPivotTable) {   // TODO 透视表暂时不支持
         continue;
       }
-
-      // TODO 图表 char暂时未支持；
-
-
       //单元格的样式
-      XSSFCellStyle cellStyle = excel.createCellStyle();
+      //      XSSFCellStyle cellStyle = excel.createCellStyle();
       //创建XSSFSheet对象并命名
       XSSFSheet sheet = excel.createSheet(jsonObject.getString("name"));
-      //创建表格
-      createRowsAndColumns(excel, sheet, data, config, celldata);
+      // 给sheet填充数据
+      sheet = createRowsAndColumns(excel, sheet, data, config, celldata);
+
+      // 给 sheet绘图
+      if (chartData != null && chartData.size() > 0) {
+        // 目前仅折线图
+        sheet = DrawSheetCharts.SheetCharts(sheet, chartData);
+
+//        for (int chartIndex = 0; chartIndex < chartData.size(); chartIndex++) {
+//          JSONObject thisChartData = chartData.getJSONObject(chartIndex);
+//          JSONObject chartOptions = thisChartData.getJSONObject("chartOptions");
+//          JSONObject chartDefaultOption = chartOptions.getJSONObject("defaultOption");
+//
+//          if (!chartOptions.getString("chartAllType").split("\\|")[1].equalsIgnoreCase("line")) {
+//            continue;
+//          }
+//
+//          // 像素位置转换成 行列位置
+//          List<Integer> anchor_int = Utils.Pix2Anchor(thisChartData.getInteger("width"), thisChartData.getInteger("height"), thisChartData.getInteger("left"), thisChartData.getInteger("top"));
+//          // 创建一个画布
+//          XSSFDrawing drawing = sheet.createDrawingPatriarch();
+//          // 创建一个chart对象
+//          XSSFChart chart = drawing.createChart(drawing.createAnchor(0, 0, 0, 0, anchor_int.get(0), anchor_int.get(1), anchor_int.get(2), anchor_int.get(3)));
+//
+//          // **********************************  标题 轴 图例 配置 ***********************
+//          // 对defaultOption进行解析与设置
+//
+//          // 标题
+//          if (chartDefaultOption.getJSONObject("title").getBoolean("show")) {
+//            // 获取title配置
+//            JSONObject chartTitle = chartDefaultOption.getJSONObject("title");
+//            // title内容
+//            chart.setTitleText(chartTitle.getString("text"));
+//            //        chart.setTitleOverlay(true);        // 标题覆盖
+//            // TODO 待完善
+//          }
+//          // 子标题
+//          if (chartDefaultOption.getJSONObject("subtitle").getBoolean("show")) {
+//            // 获取子标题配置
+//            JSONObject chartSubtitle = chartDefaultOption.getJSONObject("subtitle");
+//            // TODO 待完善
+//          }
+//          // 图例
+//          if (chartDefaultOption.getJSONObject("legend").getBoolean("show")) {
+//            // 获取图例配置
+//            JSONObject chartLegend = chartDefaultOption.getJSONObject("legend");
+//            // 图例位置
+//            XDDFChartLegend legend = chart.getOrAddLegend();
+//            String position = chartLegend.getJSONObject("position").getString("value");
+//            if (position.equalsIgnoreCase("right")) {
+//              legend.setPosition(LegendPosition.RIGHT);
+//            } else if (position.equalsIgnoreCase("left")) {
+//              legend.setPosition(LegendPosition.LEFT);
+//            } else if (position.equalsIgnoreCase("BOTTOM")) {
+//              legend.setPosition(LegendPosition.BOTTOM);
+//            } else {
+//              legend.setPosition(LegendPosition.TOP);
+//            }
+//            // TODO 待完善
+//          }
+//          // 坐标轴
+//          XDDFCategoryAxis xAxisPosition = null;    // x轴
+//          XDDFCategoryDataSource xAxisValue = null;
+//          XDDFValueAxis yAxisPosition = null;       // y轴
+//          XDDFCategoryDataSource yAxisValue = null;
+//          if (chartDefaultOption.getJSONObject("axis") != null) {
+//            JSONObject xAxisUp = chartDefaultOption.getJSONObject("axis").getJSONObject("xAxisUp");
+//            JSONObject xAxisDown = chartDefaultOption.getJSONObject("axis").getJSONObject("xAxisDown");
+//            JSONObject yAxisLeft = chartDefaultOption.getJSONObject("axis").getJSONObject("yAxisLeft");
+//            JSONObject yAxisRight = chartDefaultOption.getJSONObject("axis").getJSONObject("yAxisRight");
+//            // x轴
+//            if (xAxisUp.getBoolean("show")) {
+//              xAxisPosition = chart.createCategoryAxis(AxisPosition.TOP);
+//              if (xAxisUp.getJSONObject("title").getBoolean("showTitle")) {
+//                xAxisPosition.setTitle(xAxisUp.getJSONObject("title").getString("text"));
+//              }
+//              if (xAxisUp.containsKey("data")) {
+//                xAxisValue = XDDFDataSourcesFactory.fromArray(Utils.JsonArray2ArrayString(xAxisUp.getJSONArray("data")));
+//              }
+//            }
+//            if (xAxisDown.getBoolean("show")) {
+//              xAxisPosition = chart.createCategoryAxis(AxisPosition.BOTTOM);
+//              if (xAxisDown.getJSONObject("title").getBoolean("showTitle")) {
+//                xAxisPosition.setTitle(xAxisDown.getJSONObject("title").getString("text"));
+//              }
+//              if (xAxisDown.containsKey("data")) {
+//                xAxisValue = XDDFDataSourcesFactory.fromArray(Utils.JsonArray2ArrayString(xAxisDown.getJSONArray("data")));
+//              }
+//            }
+//            // y轴
+//            if (yAxisLeft.getBoolean("show")) {
+//              yAxisPosition = chart.createValueAxis(AxisPosition.LEFT);
+//              if (yAxisLeft.getJSONObject("title").getBoolean("showTitle")) {
+//                yAxisPosition.setTitle(yAxisLeft.getJSONObject("title").getString("text"));
+//              }
+//              if (yAxisLeft.containsKey("data")) {
+//                yAxisValue = XDDFDataSourcesFactory.fromArray(Utils.JsonArray2ArrayString(yAxisLeft.getJSONArray("data")));
+//              }
+//            }
+//            if (yAxisRight.getBoolean("show")) {
+//              yAxisPosition = chart.createValueAxis(AxisPosition.RIGHT);
+//              if (yAxisRight.getJSONObject("title").getBoolean("showTitle")) {
+//                yAxisPosition.setTitle(yAxisRight.getJSONObject("title").getString("text"));
+//              }
+//              if (yAxisRight.containsKey("data")) {
+//                yAxisValue = XDDFDataSourcesFactory.fromArray(Utils.JsonArray2ArrayString(yAxisRight.getJSONArray("data")));
+//              }
+//            }
+//          }
+//
+//          // 绘图
+//          // LINE：折线图，
+//
+//          XDDFLineChartData draw_data = (XDDFLineChartData) chart.createData(ChartTypes.LINE, xAxisPosition, yAxisPosition);
+//
+//          // 添加各个折线
+//          if (chartDefaultOption.getJSONArray("series") != null) {
+//            JSONArray series = chartDefaultOption.getJSONArray("series");
+//            for (int series_idx = 0; series_idx < series.size(); series_idx++) {
+//              JSONObject series_line = series.getJSONObject(series_idx);
+//
+//              // 1条折线的数据
+//              XDDFNumericalDataSource<Integer> plot_data = XDDFDataSourcesFactory.fromArray(Utils.JsonArray2ArrayDouble(series_line.getJSONArray("data")));
+//              // 生成 1条折线
+//              XDDFLineChartData.Series series_plot = (XDDFLineChartData.Series) draw_data.addSeries(xAxisValue, plot_data);
+//              // 折线的标题
+//              series_plot.setTitle(series_line.getString("name"), null);
+//              if (series_line.getString("type") != null) {
+//                if (series_line.getString("type").equalsIgnoreCase("line")) {
+//                  series_plot.setSmooth(false);              // 折线样式---直线
+//                }
+//              }
+//              // mark 暂无
+//              //          series_plot.setMarkerSize((short) 6);          // 设置标记大小
+//              //          series_plot.setMarkerStyle(MarkerStyle.STAR);  // 设置标记样式，星星
+//
+//            }
+//          }
+//
+//          // 绘制
+//          chart.plot(draw_data);
+//        }
+
+      }
+
     }
 
     return excel;
@@ -257,7 +398,7 @@ public class ExcelExport {
    * @param data   工作表数据
    * @param config 工作表配置
    */
-  private static void createRowsAndColumns(XSSFWorkbook excel, XSSFSheet sheet, JSONArray data, JSONObject config, JSONArray cellData) {
+  private static XSSFSheet createRowsAndColumns(XSSFWorkbook excel, XSSFSheet sheet, JSONArray data, JSONObject config, JSONArray cellData) {
     /***
      * luckysheet的配置，config下的配置
      */
@@ -299,11 +440,12 @@ public class ExcelExport {
       }
     }
     //设置所有单元格值
-    setCellValue(cellData, borderInfo, sheet, excel);
+    XSSFSheet this_sheet = setCellValue(cellData, borderInfo, sheet, excel);
+
+    return this_sheet;
   }
 
-  private static void setCellValue(JSONArray cellData, JSONArray borderInfoObjectList, XSSFSheet
-      sheet, XSSFWorkbook excel) {
+  private static XSSFSheet setCellValue(JSONArray cellData, JSONArray borderInfoObjectList, XSSFSheet sheet, XSSFWorkbook excel) {
     String cellType = "";
     String cellFormat = "";
 
@@ -321,10 +463,10 @@ public class ExcelExport {
 
 
       JSONObject cellObject_v = null;
-      try{
+      try {
 
         cellObject_v = cellObject.getJSONObject("v");
-      } catch (Exception e){
+      } catch (Exception e) {
         e.printStackTrace();
       }
 
@@ -410,8 +552,7 @@ public class ExcelExport {
         // 单元格背景颜色
         if (cellObject_v.getString("bg") != null) {
           style.setFillPattern(FillPatternType.SOLID_FOREGROUND);    //设置填充方案
-          style.setFillForegroundColor(new XSSFColor(setColor(cellObject_v.getString("bg")),
-              new DefaultIndexedColorMap()));
+          style.setFillForegroundColor(new XSSFColor(setColor(cellObject_v.getString("bg")), new DefaultIndexedColorMap()));
         }
 
         //设置合并单元格的样式有问题
@@ -474,11 +615,13 @@ public class ExcelExport {
       }
     }
     //设置边框
-    setBorder(borderInfoObjectList, excel, sheet);
+    XSSFSheet this_sheet = setBorder(borderInfoObjectList, sheet);
+
+    return this_sheet;
   }
 
   //设置边框
-  private static void setBorder(JSONArray borderInfoObjectList, XSSFWorkbook workbook, XSSFSheet sheet) {
+  private static XSSFSheet setBorder(JSONArray borderInfoObjectList, XSSFSheet sheet) {
 
     //一定要通过 cell.getCellStyle()  不然的话之前设置的样式会丢失
     //设置边框
@@ -503,23 +646,19 @@ public class ExcelExport {
 
           if (l != null) {  //左边框
             cell.getCellStyle().setBorderLeft(BordMap.get(l.getInteger("style"))); // 样式
-            cell.getCellStyle().setLeftBorderColor(new XSSFColor(setColor(l.getString("color")),
-                new DefaultIndexedColorMap()));  //颜色
+            cell.getCellStyle().setLeftBorderColor(new XSSFColor(setColor(l.getString("color")), new DefaultIndexedColorMap()));  //颜色
           }
           if (r != null) {  //右边框
             cell.getCellStyle().setBorderRight(BordMap.get(r.getInteger("style"))); // 样式
-            cell.getCellStyle().setRightBorderColor(new XSSFColor(setColor(r.getString("color")),
-                new DefaultIndexedColorMap()));  //颜色
+            cell.getCellStyle().setRightBorderColor(new XSSFColor(setColor(r.getString("color")), new DefaultIndexedColorMap()));  //颜色
           }
           if (t != null) {  //顶部边框
             cell.getCellStyle().setBorderTop(BordMap.get(t.getInteger("style"))); // 样式
-            cell.getCellStyle().setTopBorderColor(new XSSFColor(setColor(t.getString("color")),
-                new DefaultIndexedColorMap()));  //颜色
+            cell.getCellStyle().setTopBorderColor(new XSSFColor(setColor(t.getString("color")), new DefaultIndexedColorMap()));  //颜色
           }
           if (b != null) {  //底部边框
             cell.getCellStyle().setBorderBottom(BordMap.get(b.getInteger("style"))); // 样式
-            cell.getCellStyle().setBottomBorderColor(new XSSFColor(setColor(b.getString("color")),
-                new DefaultIndexedColorMap()));  //颜色
+            cell.getCellStyle().setBottomBorderColor(new XSSFColor(setColor(b.getString("color")), new DefaultIndexedColorMap()));  //颜色
           }
         } else if (borderInfoObject.get("rangeType").equals("range")) {//选区
           String bg_ = borderInfoObject.getString("color");
@@ -553,6 +692,7 @@ public class ExcelExport {
       }
     }
 
+    return sheet;
   }
 
   //设置合并单元格
