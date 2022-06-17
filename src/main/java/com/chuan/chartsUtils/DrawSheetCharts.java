@@ -2,7 +2,6 @@ package com.chuan.chartsUtils;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
-import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xddf.usermodel.chart.*;
 import org.apache.poi.xssf.usermodel.XSSFChart;
 import org.apache.poi.xssf.usermodel.XSSFDrawing;
@@ -25,7 +24,7 @@ public class DrawSheetCharts {
           sheet = getPieChart(sheet,thisChartData);
           break;
         case "column":
-//          sheet = getColumnChart(sheet, thisChartData);
+          sheet = getBarChart(sheet, thisChartData);
           break;
       }
     }
@@ -280,7 +279,7 @@ public class DrawSheetCharts {
   }
 
 
-  private static XSSFSheet getColumnChart(XSSFSheet sheet, JSONObject chartData) {
+  private static XSSFSheet getBarChart(XSSFSheet sheet, JSONObject chartData) {
 
     JSONObject chartOptions = chartData.getJSONObject("chartOptions");
     JSONObject chartDefaultOption = chartOptions.getJSONObject("defaultOption");
@@ -363,6 +362,7 @@ public class DrawSheetCharts {
         if (xAxisDown.getJSONObject("title").getBoolean("showTitle")) {
           xAxisPosition.setTitle(xAxisDown.getJSONObject("title").getString("text"));
         }
+        xAxisPosition.setCrosses(AxisCrosses.AUTO_ZERO);
         if (xAxisDown.containsKey("data")) {
           xAxisValue = XDDFDataSourcesFactory.fromArray(
               Utils.JsonArray2ArrayString(xAxisDown.getJSONArray("data")));
@@ -391,30 +391,29 @@ public class DrawSheetCharts {
       }
     }
 
-    // 绘图：折线图，
-    XDDFLineChartData draw_data = (XDDFLineChartData) chart.createData(ChartTypes.LINE, xAxisPosition, yAxisPosition);
+    // 绘图：柱状图，
+    XDDFBarChartData draw_data = (XDDFBarChartData) chart.createData(ChartTypes.BAR, xAxisPosition, yAxisPosition);
+    //设置为可变颜色
+    draw_data.setVaryColors(true);
+    //条形图方向，纵向/横向：纵向
+    draw_data.setBarDirection(BarDirection.COL);
 
     if (chartDefaultOption.getJSONArray("series") != null) {
-      JSONArray seriesData = chartDefaultOption.getJSONArray("series");
-
-      // 逐个添加折线
-      for (int series_idx = 0; series_idx < seriesData.size(); series_idx++) {
-        JSONObject series_data = seriesData.getJSONObject(series_idx);
-
-        // 1条折线的数据
+      JSONArray seriesInfo = chartDefaultOption.getJSONArray("series");
+      for (int series_idx = 0; series_idx < seriesInfo.size(); series_idx++) {
+        JSONObject seriesData = seriesInfo.getJSONObject(series_idx);
         XDDFNumericalDataSource<Double> series_plot_data = XDDFDataSourcesFactory.fromArray(
-            Utils.JsonArray2ArrayDouble(series_data.getJSONArray("data")));
-        // 生成 1条折线
-        XDDFLineChartData.Series series_plot = (XDDFLineChartData.Series) draw_data.addSeries(xAxisValue, series_plot_data);
-        // 折线的标题
-        series_plot.setTitle(series_data.getString("name"), null);
-        if (series_data.getString("type") != null) {
-          if (series_data.getString("type").equalsIgnoreCase("line")) {
-            series_plot.setSmooth(false);              // 折线样式---直线
+            Utils.JsonArray2ArrayDouble(seriesData.getJSONArray("data")));
 
-          }
+        //图表加载数据，条形图
+        XDDFBarChartData.Series series_plot = (XDDFBarChartData.Series) draw_data.addSeries(xAxisValue, series_plot_data);
+        //条形图例标题
+        if(seriesData.getString("name") != null){
+          series_plot.setTitle(seriesData.getString("name"), null);
         }
       }
+
+
     }
     chart.plot(draw_data);
 
