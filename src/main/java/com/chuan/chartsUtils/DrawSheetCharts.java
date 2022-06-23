@@ -6,6 +6,7 @@ import org.apache.poi.xddf.usermodel.chart.*;
 import org.apache.poi.xssf.usermodel.XSSFChart;
 import org.apache.poi.xssf.usermodel.XSSFDrawing;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
+import org.openxmlformats.schemas.drawingml.x2006.chart.CTDLbls;
 
 import java.util.List;
 
@@ -141,6 +142,9 @@ public class DrawSheetCharts {
               Utils.JsonArray2ArrayString(yAxisRight.getJSONArray("data")));
         }
       }
+      xAxisPosition.setCrosses(AxisCrosses.AUTO_ZERO);
+      yAxisPosition.setCrossBetween(AxisCrossBetween.BETWEEN);
+      yAxisPosition.setCrosses(AxisCrosses.AUTO_ZERO);
     }
 
     // 绘图：折线图，
@@ -254,9 +258,6 @@ public class DrawSheetCharts {
       }
     }
 
-    XDDFNumericalDataSource<Double> values = XDDFDataSourcesFactory.fromArray(new Double[]{1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0,9.0,10.0,11.0});
-
-
     // **********************************  绘图 ***********************
     // 绘图，
     XDDFChartData draw_data = chart.createData(ChartTypes.PIE, null, null);
@@ -272,8 +273,28 @@ public class DrawSheetCharts {
       }
     }
 
-
     chart.plot(draw_data);
+
+    // add data labels
+    if (!chart.getCTChart().getPlotArea().getPieChartArray(0).getSerArray(0).isSetDLbls())
+      chart.getCTChart().getPlotArea().getPieChartArray(0).getSerArray(0).addNewDLbls();
+    CTDLbls ctdLbls = chart.getCTChart().getPlotArea().getPieChartArray(0).getSerArray(0).getDLbls();
+
+    //引导线
+    ctdLbls.addNewShowLeaderLines().setVal(true);
+    // 类别名称
+    ctdLbls.addNewShowCatName().setVal(true);   // 标记
+    //百分比
+    ctdLbls.addNewShowPercent().setVal(false); // 百分比
+
+    ctdLbls.addNewShowLegendKey().setVal(false);
+    ctdLbls.addNewShowVal().setVal(false);
+    ctdLbls.addNewShowSerName().setVal(false);
+    ctdLbls.addNewShowBubbleSize().setVal(false);
+
+    // do not auto delete the title; is necessary for showing title in Calc
+    if (chart.getCTChart().getAutoTitleDeleted() == null) chart.getCTChart().addNewAutoTitleDeleted();
+    chart.getCTChart().getAutoTitleDeleted().setVal(false);
 
     return sheet;
   }
@@ -362,7 +383,6 @@ public class DrawSheetCharts {
         if (xAxisDown.getJSONObject("title").getBoolean("showTitle")) {
           xAxisPosition.setTitle(xAxisDown.getJSONObject("title").getString("text"));
         }
-        xAxisPosition.setCrosses(AxisCrosses.AUTO_ZERO);
         if (xAxisDown.containsKey("data")) {
           xAxisValue = XDDFDataSourcesFactory.fromArray(
               Utils.JsonArray2ArrayString(xAxisDown.getJSONArray("data")));
@@ -389,7 +409,11 @@ public class DrawSheetCharts {
               Utils.JsonArray2ArrayString(yAxisRight.getJSONArray("data")));
         }
       }
+      xAxisPosition.setCrosses(AxisCrosses.AUTO_ZERO);
+      yAxisPosition.setCrossBetween(AxisCrossBetween.BETWEEN);
+      yAxisPosition.setCrosses(AxisCrosses.AUTO_ZERO);
     }
+
 
     // 绘图：柱状图，
     XDDFBarChartData draw_data = (XDDFBarChartData) chart.createData(ChartTypes.BAR, xAxisPosition, yAxisPosition);
