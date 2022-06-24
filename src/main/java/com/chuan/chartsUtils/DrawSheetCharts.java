@@ -12,28 +12,27 @@ import java.util.List;
 
 public class DrawSheetCharts {
 
-  public static XSSFSheet SheetCharts(XSSFSheet sheet, JSONArray chartData) {
+  public static void SheetCharts(XSSFSheet sheet, JSONArray chartData) {
 
     for (int chartIndex = 0; chartIndex < chartData.size(); chartIndex++) {
       JSONObject thisChartData = chartData.getJSONObject(chartIndex);
       String chartType = thisChartData.getJSONObject("chartOptions").getString("chartAllType").split("\\|")[1];
       switch (chartType.toLowerCase()) {
         case "line":
-          sheet = getLineChart(sheet, thisChartData);
+          getLineChart(sheet, thisChartData);
           break;
         case "pie":
-          sheet = getPieChart(sheet,thisChartData);
+          getPieChart(sheet,thisChartData);
           break;
         case "column":
-          sheet = getBarChart(sheet, thisChartData);
+          getBarChart(sheet, thisChartData);
           break;
       }
     }
-    return sheet;
   }
 
 
-  private static XSSFSheet getLineChart(XSSFSheet sheet, JSONObject chartData) {
+  private static void getLineChart(XSSFSheet sheet, JSONObject chartData) {
 
     JSONObject chartOptions = chartData.getJSONObject("chartOptions");
     JSONObject chartDefaultOption = chartOptions.getJSONObject("defaultOption");
@@ -94,7 +93,6 @@ public class DrawSheetCharts {
     XDDFCategoryAxis xAxisPosition = null;    // x轴
     XDDFCategoryDataSource xAxisValue = null;
     XDDFValueAxis yAxisPosition = null;       // y轴
-    XDDFCategoryDataSource yAxisValue = null;
     if (chartDefaultOption.getJSONObject("axis") != null) {
       JSONObject xAxisUp = chartDefaultOption.getJSONObject("axis").getJSONObject("xAxisUp");
       JSONObject xAxisDown = chartDefaultOption.getJSONObject("axis").getJSONObject("xAxisDown");
@@ -127,22 +125,16 @@ public class DrawSheetCharts {
         if (yAxisLeft.getJSONObject("title").getBoolean("showTitle")) {
           yAxisPosition.setTitle(yAxisLeft.getJSONObject("title").getString("text"));
         }
-        if (yAxisLeft.containsKey("data")) {
-          yAxisValue = XDDFDataSourcesFactory.fromArray(
-              Utils.JsonArray2ArrayString(yAxisLeft.getJSONArray("data")));
-        }
       }
       if (yAxisRight.getBoolean("show")) {
         yAxisPosition = chart.createValueAxis(AxisPosition.RIGHT);
         if (yAxisRight.getJSONObject("title").getBoolean("showTitle")) {
           yAxisPosition.setTitle(yAxisRight.getJSONObject("title").getString("text"));
         }
-        if (yAxisRight.containsKey("data")) {
-          yAxisValue = XDDFDataSourcesFactory.fromArray(
-              Utils.JsonArray2ArrayString(yAxisRight.getJSONArray("data")));
-        }
       }
+      assert xAxisPosition != null;
       xAxisPosition.setCrosses(AxisCrosses.AUTO_ZERO);
+      assert yAxisPosition != null;
       yAxisPosition.setCrossBetween(AxisCrossBetween.BETWEEN);
       yAxisPosition.setCrosses(AxisCrosses.AUTO_ZERO);
     }
@@ -174,11 +166,10 @@ public class DrawSheetCharts {
     }
     chart.plot(draw_data);
 
-    return sheet;
   }
 
 
-  private static XSSFSheet getPieChart(XSSFSheet sheet, JSONObject chartData) {
+  private static void getPieChart(XSSFSheet sheet, JSONObject chartData) {
 
     JSONObject chartOptions = chartData.getJSONObject("chartOptions");
     JSONObject chartDefaultOption = chartOptions.getJSONObject("defaultOption");
@@ -241,8 +232,6 @@ public class DrawSheetCharts {
     if (chartDefaultOption.getJSONObject("axis") != null) {
       JSONObject xAxisUp = chartDefaultOption.getJSONObject("axis").getJSONObject("xAxisUp");
       JSONObject xAxisDown = chartDefaultOption.getJSONObject("axis").getJSONObject("xAxisDown");
-      JSONObject yAxisLeft = chartDefaultOption.getJSONObject("axis").getJSONObject("yAxisLeft");
-      JSONObject yAxisRight = chartDefaultOption.getJSONObject("axis").getJSONObject("yAxisRight");
       // x轴
       if (xAxisUp.getBoolean("show")) {
         if (xAxisUp.containsKey("data")) {
@@ -296,11 +285,10 @@ public class DrawSheetCharts {
     if (chart.getCTChart().getAutoTitleDeleted() == null) chart.getCTChart().addNewAutoTitleDeleted();
     chart.getCTChart().getAutoTitleDeleted().setVal(false);
 
-    return sheet;
   }
 
 
-  private static XSSFSheet getBarChart(XSSFSheet sheet, JSONObject chartData) {
+  private static void getBarChart(XSSFSheet sheet, JSONObject chartData) {
 
     JSONObject chartOptions = chartData.getJSONObject("chartOptions");
     JSONObject chartDefaultOption = chartOptions.getJSONObject("defaultOption");
@@ -394,22 +382,16 @@ public class DrawSheetCharts {
         if (yAxisLeft.getJSONObject("title").getBoolean("showTitle")) {
           yAxisPosition.setTitle(yAxisLeft.getJSONObject("title").getString("text"));
         }
-        if (yAxisLeft.containsKey("data")) {
-          yAxisValue = XDDFDataSourcesFactory.fromArray(
-              Utils.JsonArray2ArrayString(yAxisLeft.getJSONArray("data")));
-        }
       }
       if (yAxisRight.getBoolean("show")) {
         yAxisPosition = chart.createValueAxis(AxisPosition.RIGHT);
         if (yAxisRight.getJSONObject("title").getBoolean("showTitle")) {
           yAxisPosition.setTitle(yAxisRight.getJSONObject("title").getString("text"));
         }
-        if (yAxisRight.containsKey("data")) {
-          yAxisValue = XDDFDataSourcesFactory.fromArray(
-              Utils.JsonArray2ArrayString(yAxisRight.getJSONArray("data")));
-        }
       }
+      assert xAxisPosition != null;
       xAxisPosition.setCrosses(AxisCrosses.AUTO_ZERO);
+      assert yAxisPosition != null;
       yAxisPosition.setCrossBetween(AxisCrossBetween.BETWEEN);
       yAxisPosition.setCrosses(AxisCrosses.AUTO_ZERO);
     }
@@ -441,7 +423,6 @@ public class DrawSheetCharts {
     }
     chart.plot(draw_data);
 
-    return sheet;
   }
 
 }
